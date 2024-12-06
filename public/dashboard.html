@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chemical Management System</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 2rem;
+            margin: 20px 0;
+        }
+
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 0 15px;
+        }
+
+        button {
+            padding: 15px 20px;
+            font-size: 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 200px;
+            max-width: 100%;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-3px);
+        }
+
+        .data-section {
+            display: none;
+            margin: 20px auto;
+            max-width: 95%;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            background-color: #ffffff;
+        }
+
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .data-table th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            button {
+                font-size: 0.9rem;
+                padding: 12px 15px;
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+                margin: 10px 0;
+            }
+
+            button {
+                font-size: 0.8rem;
+                padding: 10px 12px;
+            }
+
+            .data-table th, .data-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Chemical Management System</h1>
+
+    <div class="button-container">
+        <button onclick="fetchData('stocks')">View Stock</button>
+        <button onclick="fetchData('supplier-transactions')">View Supplier Transactions</button>
+        <button onclick="fetchData('customer-transactions')">View Customer Transactions</button>
+        <button onclick="fetchData('reports')">View Reports</button>
+        <button onclick="fetchData('alerts')">View Alerts</button>
+    </div>
+
+    <div id="stocks" class="data-section">
+        <h2>Stock Details</h2>
+        <table class="data-table" id="stocksTable"></table>
+    </div>
+
+    <div id="supplier-transactions" class="data-section">
+        <h2>Supplier Transactions</h2>
+        <table class="data-table" id="supplier-transactionsTable"></table>
+    </div>
+
+    <div id="customer-transactions" class="data-section">
+        <h2>Customer Transactions</h2>
+        <table class="data-table" id="customer-transactionsTable"></table>
+    </div>
+
+    <div id="reports" class="data-section">
+        <h2>Reports Details</h2>
+        <table class="data-table" id="reportsTable"></table>
+    </div>
+
+    <div id="alerts" class="data-section">
+        <h2>Alerts Details</h2>
+        <table class="data-table" id="alertsTable"></table>
+    </div>
+
+    <!-- Modal -->
+<div id="detailsModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; box-shadow:0 4px 8px rgba(0,0,0,0.2); z-index:1000; border-radius:8px; width:90%; max-width:400px;">
+    <h3 id="modalTitle"></h3>
+    <p id="modalContent"></p>
+    <button onclick="closeModal()" style="margin-top:10px; padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer;">Close</button>
+</div>
+
+<!-- Modal Background -->
+<div id="modalBackground" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;"></div>
+
+
+    <script>function fetchData(feature) {
+        // Hide all sections
+        document.querySelectorAll('.data-section').forEach(section => section.style.display = 'none');
+    
+        // Show the selected feature's section
+        const section = document.getElementById(feature);
+        section.style.display = 'block';
+    
+        fetch(`/api/${feature}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (feature === 'alerts') {
+                    handleAlerts(data);
+                } else {
+                    populateTable(`${feature}Table`, data);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                alert(`An error occurred while fetching ${feature} data. Please try again later.`);
+            });
+    }
+    
+    function handleAlerts(data) {
+        const table = document.getElementById('alertsTable');
+        table.innerHTML = ''; // Clear the table before populating
+    
+        const lowStockData = data.lowStock || [];
+        const pendingPaymentsData = data.pendingPayments || [];
+    
+        if (lowStockData.length === 0 && pendingPaymentsData.length === 0) {
+            table.innerHTML = '<tr><td colspan="3">No alerts available.</td></tr>';
+            return;
+        }
+    
+        // Add headers for alerts
+        const headers = ['Alert Type', 'Description', 'Action'];
+        let headerRow = '<tr>';
+        headers.forEach(header => {
+            headerRow += `<th>${header}</th>`;
+        });
+        headerRow += '</tr>';
+        table.innerHTML = headerRow;
+    
+        // Populate Low Stock Alerts
+        lowStockData.forEach(item => {
+            let row = '<tr>';
+            row += `<td>Low Stock</td>`;
+            row += `<td>Chemical "${item.ChemicalName}" has only ${item.Quantity} units remaining.</td>`;
+            row += `<td><button onclick="viewLowStockDetails(${item.ChemicalID})">View</button></td>`;
+            row += '</tr>';
+            table.innerHTML += row;
+        });
+    
+        // Populate Pending Payments Alerts
+        pendingPaymentsData.forEach(payment => {
+            let row = '<tr>';
+            row += `<td>Pending Payment</td>`;
+            row += `<td>Payment due for ${payment.PartyName}, Transaction ID: ${payment.TransactionID}, Due: ${payment.DueDate}</td>`;
+            row += `<td><button onclick="viewPendingPaymentDetails(${payment.TransactionID})">View</button></td>`;
+            row += '</tr>';
+            table.innerHTML += row;
+        });
+    }
+    
+    function populateTable(tableId, data) {
+        const table = document.getElementById(tableId);
+        table.innerHTML = ''; // Clear the table before populating
+    
+        // Generate headers dynamically
+        const headers = Object.keys(data[0]);
+        let headerRow = '<tr>';
+        headers.forEach(header => {
+            headerRow += `<th>${header}</th>`;
+        });
+        headerRow += '</tr>';
+        table.innerHTML = headerRow;
+    
+        // Populate rows
+        data.forEach(item => {
+            let row = '<tr>';
+            headers.forEach(header => {
+                row += `<td>${item[header]}</td>`;
+            });
+            row += '</tr>';
+            table.innerHTML += row;
+        });
+    }
+    </script>
+    
+
+</body>
+</html>
